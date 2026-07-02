@@ -2,21 +2,23 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  View,
   type PressableProps,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type ButtonVariant = 'primary' | 'secondary';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
 export type ButtonProps = Omit<PressableProps, 'style'> & {
   title: string;
   variant?: ButtonVariant;
   loading?: boolean;
+  icon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -25,14 +27,20 @@ export function Button({
   variant = 'primary',
   loading = false,
   disabled,
+  icon,
   style,
   ...rest
 }: ButtonProps) {
   const theme = useTheme();
   const isDisabled = disabled || loading;
 
-  const backgroundColor = variant === 'primary' ? '#3c87f7' : theme.backgroundElement;
-  const textColor = variant === 'primary' ? '#ffffff' : theme.text;
+  const backgroundColor =
+    variant === 'primary'
+      ? theme.primary
+      : variant === 'secondary'
+        ? theme.backgroundElement
+        : 'transparent';
+  const textColor = variant === 'primary' ? theme.onPrimary : theme.text;
 
   return (
     <Pressable
@@ -48,9 +56,12 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
-        <ThemedText type="smallBold" style={{ color: textColor }}>
-          {title}
-        </ThemedText>
+        <View style={styles.content}>
+          {icon}
+          <ThemedText type="smallBold" style={{ color: textColor, fontSize: 15 }}>
+            {title}
+          </ThemedText>
+        </View>
       )}
     </Pressable>
   );
@@ -58,10 +69,15 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    height: 48,
-    borderRadius: Spacing.three,
+    minHeight: 50,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.five,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
 });
