@@ -1,0 +1,43 @@
+# Memoria — agent notes
+
+Expo SDK 57 project (React Native + Expo Router + TypeScript + Supabase auth).
+This is a scaffold: navigation, reusable UI and auth are wired up; tracking
+features are intentionally not implemented yet.
+
+Expo SDK 57 introduced breaking changes vs. older versions. Read the exact
+versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing code.
+
+## Cursor Cloud specific instructions
+
+### Services
+
+There is a single service: the Expo dev server (Metro bundler). It serves the
+React Native app to web, iOS and Android. Commands live in `package.json`
+(`start`, `web`, `android`, `ios`, `lint`, `typecheck`).
+
+### Running / testing in the cloud VM
+
+- Web is the only target that can be exercised headlessly in this VM (no
+  Android/iOS emulators). Run `npx expo start --web` (or `npm run web`).
+- Expo/Metro binds to port 8081 by default; the static web app is served on
+  8081 as well. If a run seems stuck, another Expo process may already hold the
+  port — check existing terminals before starting a new server.
+- The dev server is long-running; start it in a background/tmux session rather
+  than a blocking foreground call.
+
+### Environment / Supabase
+
+- Supabase credentials are read from `EXPO_PUBLIC_SUPABASE_URL` and
+  `EXPO_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). `EXPO_PUBLIC_*` vars are
+  inlined by Metro **at bundle time**, so after editing `.env` you must restart
+  the dev server for changes to take effect (hot reload will not pick them up).
+- The app boots without real credentials (`src/lib/supabase.ts` falls back to a
+  placeholder client and logs a warning), so navigation and UI can be developed
+  offline. Actual sign-in/sign-up requires a real Supabase project.
+
+### Navigation gotcha
+
+- Auth gating lives in `src/app/_layout.tsx` via Expo Router `Stack.Protected`
+  guards keyed off the Supabase session. Route groups `(auth)` and `(tabs)`
+  have no default index route of their own — routing is driven by the guard, so
+  don't expect `/` to resolve without the auth provider mounted.
