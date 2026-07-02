@@ -11,7 +11,7 @@ import { SearchBar } from '@/components/ui/search-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { recentSearches, searchFilters, trending } from '@/data/mock';
+import { detailHref, recentSearches, searchFilters, trending } from '@/data/mock';
 
 export default function DiscoverScreen() {
   const theme = useTheme();
@@ -67,12 +67,11 @@ export default function DiscoverScreen() {
           <SectionHeader title="Trending This Week" onAction={() => {}} />
           <View style={styles.trendingList}>
             {trending.map(({ rank, item, rating }) => {
-              const href = item.type === 'book' ? `/book/${item.id}` : `/show/${item.id}`;
               return (
                 <Pressable
                   key={item.id}
                   style={styles.trendingRow}
-                  onPress={() => router.push(href as never)}
+                  onPress={() => router.push(detailHref(item) as never)}
                 >
                   <ThemedText type="heading" style={{ color: theme.textSecondary, width: 26 }}>
                     {rank}
@@ -86,7 +85,7 @@ export default function DiscoverScreen() {
                       {item.subtitle}
                     </ThemedText>
                   </View>
-                  <Rating value={rating} size={13} showValue />
+                  <Rating value={rating} scale={item.type === 'book' ? 5 : 10} size={13} showValue />
                 </Pressable>
               );
             })}

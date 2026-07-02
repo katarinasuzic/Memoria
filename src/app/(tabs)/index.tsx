@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
+import { Chip } from '@/components/ui/chip';
 import { Poster } from '@/components/ui/poster';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Rating } from '@/components/ui/rating';
@@ -16,9 +18,12 @@ import { useTheme } from '@/hooks/use-theme';
 import {
   books,
   currentUser,
+  detailHref,
+  feedFilters,
   friendsActivity,
   recommended,
   shows,
+  upcomingEpisodes,
   type MediaItem,
 } from '@/data/mock';
 
@@ -26,10 +31,9 @@ function ContinueCard({ item }: { item: MediaItem }) {
   const theme = useTheme();
   const router = useRouter();
   const pct = item.progress ? item.progress.current / item.progress.total : 0;
-  const href = item.type === 'book' ? `/book/${item.id}` : `/show/${item.id}`;
 
   return (
-    <Card padded={false} onPress={() => router.push(href as never)}>
+    <Card padded={false} onPress={() => router.push(detailHref(item) as never)}>
       <View style={styles.continueRow}>
         <Poster uri={item.cover} width={64} radius={Radius.sm} />
         <View style={styles.continueBody}>
@@ -60,14 +64,12 @@ export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
+  const [feedFilter, setFeedFilter] = useState<string>('Everyone');
   const displayName = user?.email?.split('@')[0] ?? currentUser.name;
 
   return (
     <Screen padded={false} edges={['top', 'left', 'right']}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Avatar name={displayName} size={46} />
@@ -83,8 +85,10 @@ export default function HomeScreen() {
           <Pressable
             style={[styles.bell, { backgroundColor: theme.backgroundElement }]}
             accessibilityLabel="Notifications"
+            onPress={() => router.push('/notifications')}
           >
             <Ionicons name="notifications-outline" size={20} color={theme.text} />
+            <View style={[styles.bellDot, { backgroundColor: theme.pink }]} />
           </Pressable>
         </View>
 
@@ -99,60 +103,86 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Friends Activity" onAction={() => {}} />
-          <Card>
-            {friendsActivity.map((f, i) => (
-              <View
-                key={f.id}
-                style={[
-                  styles.friendRow,
-                  i < friendsActivity.length - 1 && {
-                    borderBottomWidth: StyleSheet.hairlineWidth,
-                    borderBottomColor: theme.border,
-                  },
-                ]}
-              >
-                <Avatar name={f.name} size={40} />
-                <View style={styles.friendBody}>
-                  <ThemedText type="smallBold" numberOfLines={1}>
-                    {f.name} {f.action}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                    {f.title}
-                  </ThemedText>
+          <SectionHeader title="Upcoming Episodes" onAction={() => {}} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+            {upcomingEpisodes.map((ep) => (
+              <Card key={ep.id} padded={false} style={styles.upcomingCard}>
+                <View style={styles.upcomingRow}>
+                  <Poster uri={ep.cover} width={44} radius={Radius.sm} />
+                  <View style={styles.upcomingBody}>
+                    <ThemedText type="smallBold" numberOfLines={1}>
+                      {ep.show}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {ep.label}
+                    </ThemedText>
+                    <ThemedText type="smallBold" style={{ color: theme.primary }}>
+                      {ep.date}
+                    </ThemedText>
+                  </View>
                 </View>
-                <View style={styles.friendMeta}>
-                  <Rating value={f.rating} size={12} />
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {f.time}
-                  </ThemedText>
-                </View>
-              </View>
+              </Card>
             ))}
-          </Card>
+          </ScrollView>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title="Friends Activity" onAction={() => {}} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+            {feedFilters.map((f) => (
+              <Chip key={f} label={f} selected={feedFilter === f} onPress={() => setFeedFilter(f)} />
+            ))}
+          </ScrollView>
+          <View style={styles.feed}>
+            {friendsActivity.map((f) => (
+              <Card key={f.id}>
+                <View style={styles.feedHeader}>
+                  <Avatar name={f.name} size={40} />
+                  <View style={styles.feedBody}>
+                    <ThemedText type="smallBold" numberOfLines={2}>
+                      {f.name} {f.action} {f.title}
+                    </ThemedText>
+                    <View style={styles.feedMeta}>
+                      <Rating value={f.rating} size={12} />
+                      <ThemedText type="small" themeColor="textSecondary">
+                        · {f.time}
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
+                <View style={[styles.feedActions, { borderTopColor: theme.border }]}>
+                  <View style={styles.feedAction}>
+                    <Ionicons name="heart-outline" size={18} color={theme.textSecondary} />
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {f.likes}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.feedAction}>
+                    <Ionicons name="chatbubble-outline" size={17} color={theme.textSecondary} />
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {f.comments}
+                    </ThemedText>
+                  </View>
+                </View>
+              </Card>
+            ))}
+          </View>
         </View>
 
         <View style={styles.section}>
           <SectionHeader title="Recommended for You" onAction={() => {}} />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.rail}
-          >
-            {recommended.map((item) => {
-              const href = item.type === 'book' ? `/book/${item.id}` : `/show/${item.id}`;
-              return (
-                <View key={item.id} style={styles.railItem}>
-                  <Poster uri={item.cover} width={128} onPress={() => router.push(href as never)} />
-                  <ThemedText type="smallBold" numberOfLines={1} style={styles.railTitle}>
-                    {item.title}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                    {item.subtitle}
-                  </ThemedText>
-                </View>
-              );
-            })}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+            {recommended.map((item) => (
+              <View key={item.id} style={styles.railItem}>
+                <Poster uri={item.cover} width={128} onPress={() => router.push(detailHref(item) as never)} />
+                <ThemedText type="smallBold" numberOfLines={1} style={styles.railTitle}>
+                  {item.title}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                  {item.subtitle}
+                </ThemedText>
+              </View>
+            ))}
           </ScrollView>
         </View>
       </ScrollView>
@@ -187,6 +217,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  bellDot: {
+    position: 'absolute',
+    top: 11,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   section: {
     gap: 0,
   },
@@ -209,18 +247,51 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  friendRow: {
+  filters: {
+    gap: Spacing.two,
+    paddingRight: Spacing.four,
+    marginBottom: Spacing.three,
+  },
+  feed: {
+    gap: Spacing.three,
+  },
+  feedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    paddingVertical: Spacing.three,
   },
-  friendBody: {
+  feedBody: {
     flex: 1,
     gap: 2,
   },
-  friendMeta: {
-    alignItems: 'flex-end',
+  feedMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  feedActions: {
+    flexDirection: 'row',
+    gap: Spacing.five,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: Spacing.three,
+    paddingTop: Spacing.three,
+  },
+  feedAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  upcomingCard: {
+    width: 220,
+    padding: Spacing.three,
+  },
+  upcomingRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    alignItems: 'center',
+  },
+  upcomingBody: {
+    flex: 1,
     gap: 2,
   },
   rail: {

@@ -1,15 +1,60 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Chip } from '@/components/ui/chip';
 import { Poster } from '@/components/ui/poster';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Rating } from '@/components/ui/rating';
-import { Radius, Spacing } from '@/constants/theme';
+import { Palette, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { MediaItem } from '@/data/mock';
+import type { MediaItem, ReviewType } from '@/data/mock';
+
+const REVIEW_TYPES: ReviewType[] = ['Quick Thought', 'Full Review', 'Spoiler Review'];
+
+function ReviewSection() {
+  const theme = useTheme();
+  const [reviewType, setReviewType] = useState<ReviewType>('Quick Thought');
+  const [spoiler, setSpoiler] = useState(false);
+  const [text, setText] = useState('');
+
+  return (
+    <View style={styles.reviewBlock}>
+      <ThemedText type="sectionTitle">Add a review</ThemedText>
+      <View style={styles.reviewTypes}>
+        {REVIEW_TYPES.map((t) => (
+          <Chip key={t} label={t} selected={reviewType === t} onPress={() => setReviewType(t)} />
+        ))}
+      </View>
+      <TextInput
+        placeholder="What did you think?"
+        placeholderTextColor={theme.textSecondary}
+        value={text}
+        onChangeText={setText}
+        multiline
+        style={[
+          styles.reviewInput,
+          { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border },
+        ]}
+      />
+      <View style={[styles.spoilerRow, { borderColor: theme.border }]}>
+        <View style={styles.spoilerLabel}>
+          <Ionicons name="warning-outline" size={16} color={theme.amber} />
+          <ThemedText type="smallBold">Contains spoilers</ThemedText>
+        </View>
+        <Switch
+          value={spoiler}
+          onValueChange={setSpoiler}
+          trackColor={{ true: Palette.purple, false: theme.backgroundSelected }}
+          thumbColor="#fff"
+        />
+      </View>
+    </View>
+  );
+}
 
 function DropdownPill({ label, style }: { label: string; style?: object }) {
   const theme = useTheme();
@@ -84,7 +129,7 @@ export function MediaDetail({ item }: { item: MediaItem }) {
         </ThemedText>
 
         <View style={styles.metaRow}>
-          <Rating value={item.rating} size={16} showValue />
+          <Rating value={item.rating} scale={isBook ? 5 : 10} size={16} showValue />
           <View style={[styles.dot, { backgroundColor: theme.textSecondary }]} />
           <ThemedText type="small" themeColor="textSecondary">
             {item.genres.join(', ')}
@@ -133,9 +178,43 @@ export function MediaDetail({ item }: { item: MediaItem }) {
         ) : (
           <View style={styles.yourRating}>
             <ThemedText type="smallBold">Your Rating</ThemedText>
-            <Rating value={5} size={22} showValue outOfTen />
+            <Rating value={item.rating} scale={10} size={22} showValue />
           </View>
         )}
+
+        {(item.platform || item.edition) ? (
+          <View style={[styles.datesCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            {item.edition ? (
+              <View style={styles.dateRow}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Edition
+                </ThemedText>
+                <ThemedText type="smallBold">
+                  {item.edition}
+                  {item.own ? ' · Owned' : ''}
+                </ThemedText>
+              </View>
+            ) : null}
+            {item.platform ? (
+              <View style={styles.dateRow}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Platform
+                </ThemedText>
+                <ThemedText type="smallBold">{item.platform}</ThemedText>
+              </View>
+            ) : null}
+            {item.watchDate ? (
+              <View style={styles.dateRow}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Watched
+                </ThemedText>
+                <ThemedText type="smallBold">{item.watchDate}</ThemedText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        <ReviewSection />
 
         <View style={[styles.actions, { borderColor: theme.border }]}>
           {actions.map((a) => (
@@ -252,5 +331,37 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  reviewBlock: {
+    marginTop: Spacing.four,
+    gap: Spacing.three,
+  },
+  reviewTypes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  reviewInput: {
+    minHeight: 90,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.four,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    textAlignVertical: 'top',
+  },
+  spoilerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+  },
+  spoilerLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
 });

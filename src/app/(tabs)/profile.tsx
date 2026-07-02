@@ -1,26 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
+import { Card } from '@/components/ui/card';
 import { Poster } from '@/components/ui/poster';
 import { Rating } from '@/components/ui/rating';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
-import { currentUser, favorites } from '@/data/mock';
+import { currentUser, customLists, favorites, quotes, reviews } from '@/data/mock';
 
 const TABS = ['Activity', 'Reviews', 'Lists', 'Stats'] as const;
 const FAVORITE_LABELS = ['Book', 'Movie', 'Show'];
 
 export default function ProfileScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Activity');
 
   const email = user?.email;
@@ -36,11 +39,11 @@ export default function ProfileScreen() {
         <Image source={{ uri: 'https://picsum.photos/seed/memorianebula/800/400' }} style={styles.bannerImage} contentFit="cover" />
         <View style={[styles.bannerScrim, { backgroundColor: theme.background }]} />
         <Pressable
-          onPress={signOut}
+          onPress={() => router.push('/settings')}
           style={[styles.signOut, { top: insets.top + Spacing.two, backgroundColor: 'rgba(0,0,0,0.4)' }]}
-          accessibilityLabel="Sign out"
+          accessibilityLabel="Settings"
         >
-          <Ionicons name="log-out-outline" size={20} color="#fff" />
+          <Ionicons name="settings-outline" size={20} color="#fff" />
         </Pressable>
       </View>
 
@@ -95,23 +98,109 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {tab === 'Activity' ? (
-          <View style={[styles.activityRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Avatar name={name} size={40} />
-            <View style={styles.activityBody}>
-              <ThemedText type="smallBold">{name} rated Interstellar</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                A perfect blend of science and emotion.
-              </ThemedText>
-              <Rating value={5} size={13} showValue outOfTen />
+        <View style={styles.tabContent}>
+          {tab === 'Activity' ? (
+            <View style={[styles.activityRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Avatar name={name} size={40} />
+              <View style={styles.activityBody}>
+                <ThemedText type="smallBold">{name} rated Interstellar</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  A perfect blend of science and emotion.
+                </ThemedText>
+                <Rating value={10} scale={10} size={13} showValue />
+              </View>
+              <StatusBadge status="Watched" size="sm" />
             </View>
-            <StatusBadge status="Watched" size="sm" />
-          </View>
-        ) : (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyTab}>
-            Nothing here yet.
-          </ThemedText>
-        )}
+          ) : null}
+
+          {tab === 'Reviews'
+            ? reviews.map((r) => (
+                <Card key={r.id}>
+                  <View style={styles.reviewHeader}>
+                    <ThemedText type="smallBold">{r.media}</ThemedText>
+                    <Rating value={r.rating} scale={r.mediaType === 'book' ? 5 : 10} size={12} showValue />
+                  </View>
+                  <View style={styles.reviewTypeRow}>
+                    <View style={[styles.reviewTag, { backgroundColor: theme.backgroundElement }]}>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {r.type}
+                      </ThemedText>
+                    </View>
+                    {r.spoiler ? <Ionicons name="warning-outline" size={14} color={theme.amber} /> : null}
+                  </View>
+                  <ThemedText type="small" themeColor={r.spoiler ? 'textSecondary' : 'text'} style={styles.reviewText}>
+                    {r.spoiler ? 'Spoiler hidden — tap to reveal.' : r.text}
+                  </ThemedText>
+                  <View style={[styles.reviewFooter, { borderTopColor: theme.border }]}>
+                    <View style={styles.reviewStat}>
+                      <Ionicons name="heart-outline" size={15} color={theme.textSecondary} />
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {r.likes}
+                      </ThemedText>
+                    </View>
+                    <View style={styles.reviewStat}>
+                      <Ionicons name="chatbubble-outline" size={14} color={theme.textSecondary} />
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {r.comments}
+                      </ThemedText>
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      · {r.time}
+                    </ThemedText>
+                  </View>
+                </Card>
+              ))
+            : null}
+
+          {tab === 'Lists' ? (
+            <>
+              {customLists.map((l) => (
+                <Card key={l.id} padded={false}>
+                  <View style={styles.listRow}>
+                    <View style={styles.listCovers}>
+                      {l.covers.slice(0, 3).map((c, i) => (
+                        <Poster key={i} uri={c} width={38} radius={Radius.sm} style={{ marginLeft: i === 0 ? 0 : -14 }} />
+                      ))}
+                    </View>
+                    <View style={styles.listBody}>
+                      <ThemedText type="smallBold">{l.title}</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {l.count} items · {l.visibility}
+                      </ThemedText>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+                  </View>
+                </Card>
+              ))}
+              <ThemedText type="sectionTitle" style={styles.quotesTitle}>
+                Favorite Quotes
+              </ThemedText>
+              {quotes.map((q) => (
+                <Card key={q.id}>
+                  <ThemedText type="default" style={styles.quoteText}>
+                    “{q.text}”
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.quoteSource}>
+                    — {q.source}
+                  </ThemedText>
+                </Card>
+              ))}
+            </>
+          ) : null}
+
+          {tab === 'Stats' ? (
+            <Pressable
+              onPress={() => router.push('/stats')}
+              style={[styles.activityRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            >
+              <Ionicons name="stats-chart" size={22} color={theme.primary} />
+              <ThemedText type="smallBold" style={{ flex: 1 }}>
+                View your full statistics
+              </ThemedText>
+              <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
     </ScrollView>
   );
@@ -228,12 +317,16 @@ const styles = StyleSheet.create({
     width: '60%',
     borderRadius: Radius.full,
   },
+  tabContent: {
+    alignSelf: 'stretch',
+    marginTop: Spacing.four,
+    gap: Spacing.three,
+  },
   activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
     alignSelf: 'stretch',
-    marginTop: Spacing.four,
     padding: Spacing.four,
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
@@ -242,8 +335,58 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
-  emptyTab: {
-    textAlign: 'center',
-    marginTop: Spacing.six,
+  reviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reviewTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  reviewTag: {
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 3,
+  },
+  reviewText: {
+    marginTop: Spacing.two,
+  },
+  reviewFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.four,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: Spacing.three,
+    paddingTop: Spacing.three,
+  },
+  reviewStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
+  },
+  listCovers: {
+    flexDirection: 'row',
+  },
+  listBody: {
+    flex: 1,
+    gap: 2,
+  },
+  quotesTitle: {
+    marginTop: Spacing.three,
+  },
+  quoteText: {
+    fontStyle: 'italic',
+  },
+  quoteSource: {
+    marginTop: Spacing.two,
   },
 });

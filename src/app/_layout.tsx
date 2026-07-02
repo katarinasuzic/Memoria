@@ -86,7 +86,10 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
       <Stack.Protected guard={isSignedIn}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="add" options={{ presentation: 'transparentModal', animation: 'fade' }} />
+        <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
+        <Stack.Screen name="settings" options={{ presentation: 'card' }} />
         <Stack.Screen name="book/[id]" />
+        <Stack.Screen name="movie/[id]" />
         <Stack.Screen name="show/[id]" />
       </Stack.Protected>
       <Stack.Protected guard={!isSignedIn}>
