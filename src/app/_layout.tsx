@@ -9,6 +9,7 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
@@ -21,6 +22,10 @@ import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 
 SplashScreen.preventAutoHideAsync();
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
 
 const NavTheme = {
   ...DarkTheme,
@@ -48,14 +53,16 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <ThemeProvider value={NavTheme}>
-            <StatusBar style="light" />
-            <RootNavigator fontsLoaded={fontsLoaded} />
-          </ThemeProvider>
-        </AuthProvider>
-      </SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <ThemeProvider value={NavTheme}>
+              <StatusBar style="light" />
+              <RootNavigator fontsLoaded={fontsLoaded} />
+            </ThemeProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }
@@ -85,12 +92,10 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     >
       <Stack.Protected guard={isSignedIn}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="add" options={{ presentation: 'transparentModal', animation: 'fade' }} />
+        <Stack.Screen name="add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ presentation: 'card' }} />
-        <Stack.Screen name="book/[id]" />
-        <Stack.Screen name="movie/[id]" />
-        <Stack.Screen name="show/[id]" />
+        <Stack.Screen name="item/[id]" />
       </Stack.Protected>
       <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="(auth)" />

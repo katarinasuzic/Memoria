@@ -1,114 +1,139 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
-import { ProgressBar } from '@/components/ui/progress-bar';
-import { Screen } from '@/components/ui/screen';
-import { StatusBadge, type Status } from '@/components/ui/status-badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { MEDIA_ICON, RATING_SCALE } from '@/data/constants';
 import { Palette, Radius, Spacing } from '@/constants/theme';
+import { useStats } from '@/hooks/use-library';
 import { useTheme } from '@/hooks/use-theme';
 
-type Summary = {
-  label: string;
-  value: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-};
-
-const SUMMARY: Summary[] = [
-  { label: 'Books read', value: '42', icon: 'book', color: Palette.purple },
-  { label: 'Movies', value: '87', icon: 'film', color: Palette.amber },
-  { label: 'TV Shows', value: '23', icon: 'tv', color: Palette.cyan },
-  { label: 'Ratings', value: '1.2K', icon: 'star', color: Palette.green },
-];
-
-const GOALS = [
-  { label: 'Reading goal', current: 42, total: 60, color: Palette.purple },
-  { label: 'Watch goal', current: 110, total: 150, color: Palette.cyan },
-];
-
-const BY_STATUS: { status: Status; count: number }[] = [
-  { status: 'Read', count: 42 },
-  { status: 'Reading', count: 3 },
-  { status: 'Watched', count: 87 },
-  { status: 'Watching', count: 2 },
-  { status: 'Want to Read', count: 15 },
-  { status: 'DNF', count: 4 },
-];
+const TYPE_COLOR = { book: Palette.purple, movie: Palette.amber, show: Palette.cyan } as const;
 
 export default function StatsScreen() {
   const theme = useTheme();
+  const { stats, isLoading } = useStats();
 
   return (
-    <Screen padded={false}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <ThemedText type="title">Stats</ThemedText>
+        <ThemedText type="title">Statistics</ThemedText>
 
-        <View style={styles.grid}>
-          {SUMMARY.map((s) => (
-            <Card key={s.label} style={styles.summaryCard}>
-              <View style={[styles.summaryIcon, { backgroundColor: s.color + '22' }]}>
-                <Ionicons name={s.icon} size={20} color={s.color} />
-              </View>
-              <ThemedText type="title" style={styles.summaryValue}>
-                {s.value}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {s.label}
-              </ThemedText>
-            </Card>
-          ))}
-        </View>
-
-        <Card>
-          <ThemedText type="sectionTitle" style={styles.cardTitle}>
-            2026 Goals
-          </ThemedText>
-          <View style={styles.goals}>
-            {GOALS.map((g) => (
-              <View key={g.label} style={styles.goal}>
-                <View style={styles.goalHeader}>
-                  <ThemedText type="smallBold">{g.label}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {g.current} / {g.total}
+        {isLoading ? (
+          <ActivityIndicator color={theme.primary} style={styles.loader} />
+        ) : !stats || stats.total === 0 ? (
+          <View style={styles.emptyWrap}>
+            <EmptyState
+              icon="stats-chart-outline"
+              title="No statistics yet"
+              description="Add books, movies and shows to your library and your stats will appear here."
+            />
+          </View>
+        ) : (
+          <>
+            <View style={styles.grid}>
+              {(['book', 'movie', 'show'] as const).map((t) => (
+                <Card key={t} style={styles.summaryCard}>
+                  <View style={[styles.summaryIcon, { backgroundColor: TYPE_COLOR[t] + '22' }]}>
+                    <Ionicons name={MEDIA_ICON[t]} size={20} color={TYPE_COLOR[t]} />
+                  </View>
+                  <ThemedText type="title" style={styles.summaryValue}>
+                    {stats.counts[t]}
                   </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t === 'book' ? 'Books' : t === 'movie' ? 'Movies' : 'TV Shows'}
+                  </ThemedText>
+                </Card>
+              ))}
+              <Card style={styles.summaryCard}>
+                <View style={[styles.summaryIcon, { backgroundColor: Palette.green + '22' }]}>
+                  <Ionicons name="library" size={20} color={Palette.green} />
                 </View>
-                <ProgressBar progress={g.current / g.total} color={g.color} height={8} />
-              </View>
-            ))}
-          </View>
-        </Card>
-
-        <Card>
-          <ThemedText type="sectionTitle" style={styles.cardTitle}>
-            By Status
-          </ThemedText>
-          <View style={styles.statusList}>
-            {BY_STATUS.map((s) => (
-              <View
-                key={s.status}
-                style={[styles.statusRow, { borderColor: theme.border }]}
-              >
-                <StatusBadge status={s.status} size="sm" />
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  {s.count}
+                <ThemedText type="title" style={styles.summaryValue}>
+                  {stats.total}
                 </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Total tracked
+                </ThemedText>
+              </Card>
+            </View>
+
+            <Card>
+              <ThemedText type="sectionTitle" style={styles.cardTitle}>
+                Average Rating
+              </ThemedText>
+              <View style={styles.avgList}>
+                {(['book', 'movie', 'show'] as const).map((t) => (
+                  <View key={t} style={styles.avgRow}>
+                    <ThemedText type="smallBold" themeColor="textSecondary">
+                      {t === 'book' ? 'Books' : t === 'movie' ? 'Movies' : 'TV Shows'}
+                    </ThemedText>
+                    <ThemedText type="smallBold">
+                      {stats.averageRating[t] != null
+                        ? `${stats.averageRating[t]!.toFixed(1)}${RATING_SCALE[t] === 10 ? '/10' : '/5'}`
+                        : '—'}
+                    </ThemedText>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        </Card>
+            </Card>
+
+            {stats.byStatus.length > 0 ? (
+              <Card>
+                <ThemedText type="sectionTitle" style={styles.cardTitle}>
+                  By Status
+                </ThemedText>
+                <View style={styles.statusList}>
+                  {stats.byStatus.map((s) => (
+                    <View key={s.status} style={styles.statusRow}>
+                      <StatusBadge status={s.status} size="sm" />
+                      <ThemedText type="smallBold" themeColor="textSecondary">
+                        {s.count}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            ) : null}
+
+            {stats.topGenres.length > 0 ? (
+              <Card>
+                <ThemedText type="sectionTitle" style={styles.cardTitle}>
+                  Top Genres
+                </ThemedText>
+                <View style={styles.genreWrap}>
+                  {stats.topGenres.map((g) => (
+                    <View key={g.genre} style={[styles.genreChip, { backgroundColor: theme.backgroundElement }]}>
+                      <ThemedText type="small">{g.genre}</ThemedText>
+                      <ThemedText type="smallBold" themeColor="textSecondary">
+                        {g.count}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            ) : null}
+          </>
+        )}
       </ScrollView>
-    </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.six,
     paddingBottom: Spacing.seven,
     gap: Spacing.four,
+  },
+  loader: {
+    marginTop: Spacing.seven,
+  },
+  emptyWrap: {
+    marginTop: Spacing.six,
   },
   grid: {
     flexDirection: 'row',
@@ -135,13 +160,10 @@ const styles = StyleSheet.create({
   cardTitle: {
     marginBottom: Spacing.four,
   },
-  goals: {
-    gap: Spacing.four,
+  avgList: {
+    gap: Spacing.three,
   },
-  goal: {
-    gap: Spacing.two,
-  },
-  goalHeader: {
+  avgRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -153,5 +175,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  genreWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  genreChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
   },
 });

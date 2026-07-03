@@ -1,62 +1,81 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Poster } from '@/components/ui/poster';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { Rating } from '@/components/ui/rating';
-import { Screen } from '@/components/ui/screen';
-import { SectionHeader } from '@/components/ui/section-header';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { IN_PROGRESS_STATUSES, MEDIA_ICON } from '@/data/constants';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useLibrary, useProfile } from '@/hooks/use-library';
 import { useTheme } from '@/hooks/use-theme';
-import {
-  books,
-  currentUser,
-  detailHref,
-  feedFilters,
-  friendsActivity,
-  recommended,
-  shows,
-  upcomingEpisodes,
-  type MediaItem,
-} from '@/data/mock';
+import type { LibraryItem } from '@/services/types';
 
-function ContinueCard({ item }: { item: MediaItem }) {
+function LibraryRow({ item }: { item: LibraryItem }) {
   const theme = useTheme();
   const router = useRouter();
-  const pct = item.progress ? item.progress.current / item.progress.total : 0;
+  const pct =
+    item.progress_current != null && item.progress_total
+      ? item.progress_current / item.progress_total
+      : null;
 
   return (
-    <Card padded={false} onPress={() => router.push(detailHref(item) as never)}>
-      <View style={styles.continueRow}>
-        <Poster uri={item.cover} width={64} radius={Radius.sm} />
-        <View style={styles.continueBody}>
+    <Card padded={false} onPress={() => router.push(`/item/${item.id}` as never)}>
+      <View style={styles.row}>
+        {item.cover_url ? (
+          <Poster uri={item.cover_url} width={56} radius={Radius.sm} />
+        ) : (
+          <View style={[styles.noCover, { backgroundColor: theme.backgroundElement }]}>
+            <Ionicons name={MEDIA_ICON[item.media_type]} size={20} color={theme.textSecondary} />
+          </View>
+        )}
+        <View style={styles.rowBody}>
           <ThemedText type="smallBold" numberOfLines={1}>
             {item.title}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            {item.subtitle}
-          </ThemedText>
-          <View style={styles.continueProgress}>
-            <ProgressBar progress={pct} />
-            <View style={styles.continueMeta}>
+          {item.subtitle ? (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              {item.subtitle}
+            </ThemedText>
+          ) : null}
+          {pct != null ? (
+            <View style={styles.progress}>
+              <View style={styles.progressBarWrap}>
+                <ProgressBar progress={pct} />
+              </View>
               <ThemedText type="small" themeColor="textSecondary">
-                {item.progress?.label}
-              </ThemedText>
-              <ThemedText type="smallBold" style={{ color: theme.primary }}>
                 {Math.round(pct * 100)}%
               </ThemedText>
             </View>
-          </View>
+          ) : (
+            <View style={styles.badgeWrap}>
+              <StatusBadge status={item.status} size="sm" />
+            </View>
+          )}
         </View>
       </View>
     </Card>
+  );
+}
+
+function Section({ title, items }: { title: string; items: LibraryItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <View style={styles.section}>
+      <ThemedText type="sectionTitle" style={styles.sectionTitle}>
+        {title}
+      </ThemedText>
+      <View style={styles.sectionList}>
+        {items.map((item) => (
+          <LibraryRow key={item.id} item={item} />
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -64,12 +83,22 @@ export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
-  const [feedFilter, setFeedFilter] = useState<string>('Everyone');
-  const displayName = user?.email?.split('@')[0] ?? currentUser.name;
+  const { data: profile } = useProfile();
+  const { data: library, isLoading } = useLibrary();
+
+  const displayName = profile?.display_name ?? profile?.username ?? user?.email?.split('@')[0] ?? 'there';
+
+  const items = library ?? [];
+  const reading = items.filter((i) => i.media_type === 'book' && IN_PROGRESS_STATUSES.includes(i.status));
+  const watching = items.filter((i) => i.media_type !== 'book' && IN_PROGRESS_STATUSES.includes(i.status));
+  const recent = items.slice(0, 5);
 
   return (
-    <Screen padded={false} edges={['top', 'left', 'right']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Avatar name={displayName} size={46} />
@@ -88,112 +117,44 @@ export default function HomeScreen() {
             onPress={() => router.push('/notifications')}
           >
             <Ionicons name="notifications-outline" size={20} color={theme.text} />
-            <View style={[styles.bellDot, { backgroundColor: theme.pink }]} />
           </Pressable>
         </View>
 
-        <View style={styles.section}>
-          <SectionHeader title="Continue Reading" onAction={() => {}} />
-          <ContinueCard item={books[0]} />
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Continue Watching" onAction={() => {}} />
-          <ContinueCard item={shows[0]} />
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Upcoming Episodes" onAction={() => {}} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-            {upcomingEpisodes.map((ep) => (
-              <Card key={ep.id} padded={false} style={styles.upcomingCard}>
-                <View style={styles.upcomingRow}>
-                  <Poster uri={ep.cover} width={44} radius={Radius.sm} />
-                  <View style={styles.upcomingBody}>
-                    <ThemedText type="smallBold" numberOfLines={1}>
-                      {ep.show}
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {ep.label}
-                    </ThemedText>
-                    <ThemedText type="smallBold" style={{ color: theme.primary }}>
-                      {ep.date}
-                    </ThemedText>
-                  </View>
-                </View>
-              </Card>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Friends Activity" onAction={() => {}} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            {feedFilters.map((f) => (
-              <Chip key={f} label={f} selected={feedFilter === f} onPress={() => setFeedFilter(f)} />
-            ))}
-          </ScrollView>
-          <View style={styles.feed}>
-            {friendsActivity.map((f) => (
-              <Card key={f.id}>
-                <View style={styles.feedHeader}>
-                  <Avatar name={f.name} size={40} />
-                  <View style={styles.feedBody}>
-                    <ThemedText type="smallBold" numberOfLines={2}>
-                      {f.name} {f.action} {f.title}
-                    </ThemedText>
-                    <View style={styles.feedMeta}>
-                      <Rating value={f.rating} size={12} />
-                      <ThemedText type="small" themeColor="textSecondary">
-                        · {f.time}
-                      </ThemedText>
-                    </View>
-                  </View>
-                </View>
-                <View style={[styles.feedActions, { borderTopColor: theme.border }]}>
-                  <View style={styles.feedAction}>
-                    <Ionicons name="heart-outline" size={18} color={theme.textSecondary} />
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {f.likes}
-                    </ThemedText>
-                  </View>
-                  <View style={styles.feedAction}>
-                    <Ionicons name="chatbubble-outline" size={17} color={theme.textSecondary} />
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {f.comments}
-                    </ThemedText>
-                  </View>
-                </View>
-              </Card>
-            ))}
+        {isLoading ? (
+          <ActivityIndicator color={theme.primary} style={styles.loader} />
+        ) : items.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <EmptyState
+              icon="sparkles-outline"
+              title="Start your library"
+              description="Track the books, movies and shows you love. Add your first story to begin."
+            />
+            <Pressable
+              onPress={() => router.push('/add')}
+              style={[styles.cta, { backgroundColor: theme.primary }]}
+            >
+              <Ionicons name="add" size={20} color={theme.onPrimary} />
+              <ThemedText type="smallBold" style={{ color: theme.onPrimary, fontSize: 15 }}>
+                Add a story
+              </ThemedText>
+            </Pressable>
           </View>
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Recommended for You" onAction={() => {}} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-            {recommended.map((item) => (
-              <View key={item.id} style={styles.railItem}>
-                <Poster uri={item.cover} width={128} onPress={() => router.push(detailHref(item) as never)} />
-                <ThemedText type="smallBold" numberOfLines={1} style={styles.railTitle}>
-                  {item.title}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                  {item.subtitle}
-                </ThemedText>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
+        ) : (
+          <>
+            <Section title="Continue Reading" items={reading} />
+            <Section title="Continue Watching" items={watching} />
+            <Section title="Recently Added" items={recent} />
+          </>
+        )}
       </ScrollView>
-    </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.six,
     paddingBottom: Spacing.seven,
     gap: Spacing.five,
   },
@@ -217,92 +178,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bellDot: {
-    position: 'absolute',
-    top: 11,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  loader: {
+    marginTop: Spacing.seven,
+  },
+  emptyWrap: {
+    marginTop: Spacing.six,
+    alignItems: 'center',
+    gap: Spacing.four,
+  },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.five,
+    height: 50,
+    borderRadius: Radius.md,
   },
   section: {
-    gap: 0,
+    gap: Spacing.three,
   },
-  continueRow: {
+  sectionTitle: {},
+  sectionList: {
+    gap: Spacing.three,
+  },
+  row: {
     flexDirection: 'row',
     gap: Spacing.three,
     padding: Spacing.three,
   },
-  continueBody: {
+  noCover: {
+    width: 56,
+    height: 84,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowBody: {
     flex: 1,
     justifyContent: 'center',
     gap: Spacing.one,
   },
-  continueProgress: {
+  progress: {
     marginTop: Spacing.two,
     gap: Spacing.two,
-  },
-  continueMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  filters: {
-    gap: Spacing.two,
-    paddingRight: Spacing.four,
-    marginBottom: Spacing.three,
-  },
-  feed: {
-    gap: Spacing.three,
-  },
-  feedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
   },
-  feedBody: {
+  progressBarWrap: {
     flex: 1,
-    gap: 2,
   },
-  feedMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  feedActions: {
-    flexDirection: 'row',
-    gap: Spacing.five,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    marginTop: Spacing.three,
-    paddingTop: Spacing.three,
-  },
-  feedAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  upcomingCard: {
-    width: 220,
-    padding: Spacing.three,
-  },
-  upcomingRow: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-    alignItems: 'center',
-  },
-  upcomingBody: {
-    flex: 1,
-    gap: 2,
-  },
-  rail: {
-    gap: Spacing.four,
-    paddingRight: Spacing.four,
-  },
-  railItem: {
-    width: 128,
-    gap: Spacing.one,
-  },
-  railTitle: {
+  badgeWrap: {
     marginTop: Spacing.two,
   },
 });

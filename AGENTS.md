@@ -41,3 +41,22 @@ React Native app to web, iOS and Android. Commands live in `package.json`
   guards keyed off the Supabase session. Route groups `(auth)` and `(tabs)`
   have no default index route of their own — routing is driven by the guard, so
   don't expect `/` to resolve without the auth provider mounted.
+
+### Real data architecture (MVP)
+
+- Data layer: `src/services/*` (external APIs + Supabase CRUD) consumed via
+  `@tanstack/react-query` hooks in `src/hooks/` (`use-library`, `use-search`).
+  A `QueryClientProvider` wraps the app in `src/app/_layout.tsx`.
+- Database schema is versioned in `supabase/migrations/`. For local dev the
+  Supabase stack must be running (`supabase start`, needs Docker) which applies
+  the migrations; then launch Metro with the printed local `API_URL` /
+  `ANON_KEY` as `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+  Tables: `profiles` (auto-created on signup via trigger) and `library_items`
+  (RLS: users only see their own rows).
+- External media APIs (no placeholder data — show empty states instead):
+  - Books → Open Library (`src/services/openlibrary.ts`), no key.
+  - TV Shows → TVMaze (`src/services/tvmaze.ts`), no key.
+  - Movies → TMDB (`src/services/tmdb.ts`). Requires `EXPO_PUBLIC_TMDB_API_KEY`
+    (v3) or `EXPO_PUBLIC_TMDB_ACCESS_TOKEN` (v4). When unset,
+    `isTmdbConfigured` is false and the UI shows "Movie database unavailable."
+    Never fabricate movie data.

@@ -1,234 +1,177 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Chip } from '@/components/ui/chip';
 import { Poster } from '@/components/ui/poster';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Rating } from '@/components/ui/rating';
-import { Palette, Radius, Spacing } from '@/constants/theme';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { RATING_SCALE } from '@/data/constants';
+import { Radius, Spacing } from '@/constants/theme';
+import { useRemoveFromLibrary, useToggleFavorite } from '@/hooks/use-library';
 import { useTheme } from '@/hooks/use-theme';
-import type { MediaItem, ReviewType } from '@/data/mock';
+import type { LibraryItem } from '@/services/types';
 
-const REVIEW_TYPES: ReviewType[] = ['Quick Thought', 'Full Review', 'Spoiler Review'];
-
-function ReviewSection() {
-  const theme = useTheme();
-  const [reviewType, setReviewType] = useState<ReviewType>('Quick Thought');
-  const [spoiler, setSpoiler] = useState(false);
-  const [text, setText] = useState('');
-
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.reviewBlock}>
-      <ThemedText type="sectionTitle">Add a review</ThemedText>
-      <View style={styles.reviewTypes}>
-        {REVIEW_TYPES.map((t) => (
-          <Chip key={t} label={t} selected={reviewType === t} onPress={() => setReviewType(t)} />
-        ))}
-      </View>
-      <TextInput
-        placeholder="What did you think?"
-        placeholderTextColor={theme.textSecondary}
-        value={text}
-        onChangeText={setText}
-        multiline
-        style={[
-          styles.reviewInput,
-          { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border },
-        ]}
-      />
-      <View style={[styles.spoilerRow, { borderColor: theme.border }]}>
-        <View style={styles.spoilerLabel}>
-          <Ionicons name="warning-outline" size={16} color={theme.amber} />
-          <ThemedText type="smallBold">Contains spoilers</ThemedText>
-        </View>
-        <Switch
-          value={spoiler}
-          onValueChange={setSpoiler}
-          trackColor={{ true: Palette.purple, false: theme.backgroundSelected }}
-          thumbColor="#fff"
-        />
-      </View>
-    </View>
-  );
-}
-
-function DropdownPill({ label, style }: { label: string; style?: object }) {
-  const theme = useTheme();
-  return (
-    <View style={[styles.pill, { backgroundColor: theme.backgroundElement }, style]}>
-      <ThemedText type="smallBold">{label}</ThemedText>
-      <Ionicons name="chevron-down" size={16} color={theme.textSecondary} />
-    </View>
-  );
-}
-
-function ActionButton({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
-  const theme = useTheme();
-  return (
-    <Pressable style={styles.action}>
-      <View style={[styles.actionIcon, { backgroundColor: theme.backgroundElement }]}>
-        <Ionicons name={icon} size={22} color={theme.primary} />
-      </View>
+    <View style={styles.dateRow}>
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
-    </Pressable>
+      <ThemedText type="smallBold">{value}</ThemedText>
+    </View>
   );
 }
 
-export function MediaDetail({ item }: { item: MediaItem }) {
+export function MediaDetail({ item }: { item: LibraryItem }) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const isBook = item.type === 'book';
-  const isShow = item.type === 'show';
-  const pct = item.progress ? item.progress.current / item.progress.total : 0;
+  const toggleFavorite = useToggleFavorite();
+  const removeItem = useRemoveFromLibrary();
+  const [revealSpoiler, setRevealSpoiler] = useState(false);
 
-  const actions: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = isBook
-    ? [
-        { icon: 'checkmark-circle-outline', label: 'Update' },
-        { icon: 'create-outline', label: 'Review' },
-        { icon: 'chatbox-ellipses-outline', label: 'Quote' },
-        { icon: 'ellipsis-horizontal', label: 'More' },
-      ]
-    : isShow
-      ? [
-          { icon: 'create-outline', label: 'Review' },
-          { icon: 'list-outline', label: 'Episodes' },
-          { icon: 'stats-chart-outline', label: 'Stats' },
-          { icon: 'ellipsis-horizontal', label: 'More' },
-        ]
-      : [
-          { icon: 'checkmark-circle-outline', label: 'Log' },
-          { icon: 'create-outline', label: 'Review' },
-          { icon: 'repeat-outline', label: 'Rewatch' },
-          { icon: 'ellipsis-horizontal', label: 'More' },
-        ];
+  const scale = RATING_SCALE[item.media_type];
+  const pct =
+    item.progress_current != null && item.progress_total
+      ? item.progress_current / item.progress_total
+      : null;
+
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
+  const handleRemove = () => {
+    removeItem.mutate(item.id, { onSuccess: goBack });
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.two }]}>
         <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          onPress={goBack}
           style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]}
           accessibilityLabel="Go back"
         >
           <Ionicons name="arrow-back" size={20} color={theme.text} />
         </Pressable>
-        <Pressable style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]}>
-          <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
+        <Pressable
+          onPress={() => toggleFavorite.mutate({ id: item.id, value: !item.is_favorite })}
+          style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]}
+          accessibilityLabel="Toggle favorite"
+        >
+          <Ionicons
+            name={item.is_favorite ? 'heart' : 'heart-outline'}
+            size={20}
+            color={item.is_favorite ? theme.pink : theme.text}
+          />
         </Pressable>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <Poster uri={item.cover} width={160} radius={Radius.lg} />
+          {item.cover_url ? (
+            <Poster uri={item.cover_url} width={160} radius={Radius.lg} />
+          ) : (
+            <View style={[styles.noCover, { backgroundColor: theme.backgroundElement }]}>
+              <Ionicons name="image-outline" size={40} color={theme.textSecondary} />
+            </View>
+          )}
         </View>
 
-        <ThemedText type="heading" style={styles.title}>
+        <ThemedText type="heading" style={styles.center}>
           {item.title}
         </ThemedText>
-        <ThemedText type="default" themeColor="textSecondary" style={styles.center}>
-          {item.subtitle}
-        </ThemedText>
-
-        <View style={styles.metaRow}>
-          <Rating value={item.rating} scale={isBook ? 5 : 10} size={16} showValue />
-          <View style={[styles.dot, { backgroundColor: theme.textSecondary }]} />
-          <ThemedText type="small" themeColor="textSecondary">
-            {item.genres.join(', ')}
+        {item.subtitle ? (
+          <ThemedText type="default" themeColor="textSecondary" style={styles.center}>
+            {item.subtitle}
           </ThemedText>
-        </View>
-
-        <DropdownPill label={item.status ?? 'Add status'} style={styles.statusPill} />
-
-        {isShow ? (
-          <View style={styles.selectorRow}>
-            <DropdownPill label="Season 1" style={styles.flexPill} />
-            <DropdownPill label="Episode 6" style={styles.flexPill} />
-          </View>
         ) : null}
 
-        {item.progress ? (
+        <View style={styles.metaRow}>
+          {item.rating != null ? (
+            <Rating value={item.rating} scale={scale} size={16} showValue />
+          ) : (
+            <ThemedText type="small" themeColor="textSecondary">
+              No rating
+            </ThemedText>
+          )}
+          {item.genres && item.genres.length > 0 ? (
+            <>
+              <View style={[styles.dot, { backgroundColor: theme.textSecondary }]} />
+              <ThemedText type="small" themeColor="textSecondary">
+                {item.genres.slice(0, 2).join(', ')}
+              </ThemedText>
+            </>
+          ) : null}
+        </View>
+
+        <View style={styles.statusWrap}>
+          <StatusBadge status={item.status} />
+        </View>
+
+        {pct != null ? (
           <View style={styles.progressBlock}>
             <View style={styles.progressHeader}>
               <ThemedText type="smallBold">Progress</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {isBook ? `${Math.round(pct * 100)}%` : `${item.progress.current} / ${item.progress.total} episodes`}
+                {Math.round(pct * 100)}%
               </ThemedText>
             </View>
             <ProgressBar progress={pct} height={8} />
-            <ThemedText type="small" themeColor="textSecondary">
-              {item.progress.label}
-            </ThemedText>
           </View>
         ) : null}
 
-        {isBook ? (
-          <View style={[styles.datesCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <View style={styles.dateRow}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Started
-              </ThemedText>
-              <ThemedText type="smallBold">May 10, 2024</ThemedText>
-            </View>
-            <View style={styles.dateRow}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Last read
-              </ThemedText>
-              <ThemedText type="smallBold">May 20, 2024</ThemedText>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.yourRating}>
-            <ThemedText type="smallBold">Your Rating</ThemedText>
-            <Rating value={item.rating} scale={10} size={22} showValue />
-          </View>
-        )}
-
-        {(item.platform || item.edition) ? (
-          <View style={[styles.datesCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            {item.edition ? (
-              <View style={styles.dateRow}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Edition
-                </ThemedText>
-                <ThemedText type="smallBold">
-                  {item.edition}
-                  {item.own ? ' · Owned' : ''}
-                </ThemedText>
-              </View>
-            ) : null}
-            {item.platform ? (
-              <View style={styles.dateRow}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Platform
-                </ThemedText>
-                <ThemedText type="smallBold">{item.platform}</ThemedText>
-              </View>
-            ) : null}
-            {item.watchDate ? (
-              <View style={styles.dateRow}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Watched
-                </ThemedText>
-                <ThemedText type="smallBold">{item.watchDate}</ThemedText>
-              </View>
-            ) : null}
+        {item.started_at || item.finished_at ? (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            {item.started_at ? <InfoRow label="Started" value={item.started_at} /> : null}
+            {item.finished_at ? <InfoRow label="Finished" value={item.finished_at} /> : null}
           </View>
         ) : null}
 
-        <ReviewSection />
+        {item.review ? (
+          <View style={styles.reviewBlock}>
+            <View style={styles.reviewHeader}>
+              <ThemedText type="sectionTitle">
+                {item.review_type ?? 'Review'}
+              </ThemedText>
+              {item.spoiler ? (
+                <View style={styles.spoilerTag}>
+                  <Ionicons name="warning-outline" size={14} color={theme.amber} />
+                  <ThemedText type="small" style={{ color: theme.amber }}>
+                    Spoiler
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
+            {item.spoiler && !revealSpoiler ? (
+              <Pressable
+                onPress={() => setRevealSpoiler(true)}
+                style={[styles.spoilerHidden, { backgroundColor: theme.backgroundElement }]}
+              >
+                <ThemedText type="small" themeColor="textSecondary">
+                  Spoiler hidden — tap to reveal
+                </ThemedText>
+              </Pressable>
+            ) : (
+              <ThemedText type="default" themeColor="textSecondary">
+                {item.review}
+              </ThemedText>
+            )}
+          </View>
+        ) : null}
 
-        <View style={[styles.actions, { borderColor: theme.border }]}>
-          {actions.map((a) => (
-            <ActionButton key={a.label} icon={a.icon} label={a.label} />
-          ))}
-        </View>
+        <Pressable
+          onPress={handleRemove}
+          disabled={removeItem.isPending}
+          style={[styles.removeButton, { borderColor: theme.danger }]}
+        >
+          <Ionicons name="trash-outline" size={18} color={theme.danger} />
+          <ThemedText type="smallBold" style={{ color: theme.danger }}>
+            Remove from library
+          </ThemedText>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -258,8 +201,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
     marginBottom: Spacing.two,
   },
-  title: {
-    textAlign: 'center',
+  noCover: {
+    width: 160,
+    aspectRatio: 2 / 3,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   center: {
     textAlign: 'center',
@@ -275,26 +222,9 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 2,
   },
-  statusPill: {
-    alignSelf: 'stretch',
-    justifyContent: 'space-between',
-    marginTop: Spacing.two,
-  },
-  selectorRow: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-  },
-  flexPill: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  pill: {
-    flexDirection: 'row',
+  statusWrap: {
     alignItems: 'center',
-    gap: Spacing.two,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
+    marginTop: Spacing.two,
   },
   progressBlock: {
     gap: Spacing.two,
@@ -305,7 +235,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  datesCard: {
+  card: {
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.four,
@@ -316,60 +246,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  yourRating: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  reviewBlock: {
+    gap: Spacing.three,
     marginTop: Spacing.two,
   },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: Spacing.four,
-    marginTop: Spacing.four,
-  },
-  action: {
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  actionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reviewBlock: {
-    marginTop: Spacing.four,
-    gap: Spacing.three,
-  },
-  reviewTypes: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  reviewInput: {
-    minHeight: 90,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.four,
-    fontFamily: 'Inter_400Regular',
-    fontSize: 15,
-    textAlignVertical: 'top',
-  },
-  spoilerRow: {
+  reviewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
   },
-  spoilerLabel: {
+  spoilerTag: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.one,
+  },
+  spoilerHidden: {
+    borderRadius: Radius.md,
+    padding: Spacing.four,
+    alignItems: 'center',
+  },
+  removeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.two,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.four,
+    marginTop: Spacing.five,
   },
 });
