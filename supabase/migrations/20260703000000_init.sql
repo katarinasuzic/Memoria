@@ -121,3 +121,13 @@ $$;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- ---------------------------------------------------------------------------
+-- Table privileges for the PostgREST roles (RLS still governs row access)
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated;
+
+grant select on public.profiles to anon, authenticated;
+grant insert, update on public.profiles to authenticated;
+
+grant select, insert, update, delete on public.library_items to authenticated;
