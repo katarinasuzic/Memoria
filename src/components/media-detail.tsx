@@ -85,6 +85,7 @@ export function MediaDetail({ item }: { item: MediaItem }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isBook = item.type === 'book';
+  const isShow = item.type === 'show';
   const pct = item.progress ? item.progress.current / item.progress.total : 0;
 
   const actions: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = isBook
@@ -94,12 +95,19 @@ export function MediaDetail({ item }: { item: MediaItem }) {
         { icon: 'chatbox-ellipses-outline', label: 'Quote' },
         { icon: 'ellipsis-horizontal', label: 'More' },
       ]
-    : [
-        { icon: 'create-outline', label: 'Review' },
-        { icon: 'list-outline', label: 'Episodes' },
-        { icon: 'stats-chart-outline', label: 'Stats' },
-        { icon: 'ellipsis-horizontal', label: 'More' },
-      ];
+    : isShow
+      ? [
+          { icon: 'create-outline', label: 'Review' },
+          { icon: 'list-outline', label: 'Episodes' },
+          { icon: 'stats-chart-outline', label: 'Stats' },
+          { icon: 'ellipsis-horizontal', label: 'More' },
+        ]
+      : [
+          { icon: 'checkmark-circle-outline', label: 'Log' },
+          { icon: 'create-outline', label: 'Review' },
+          { icon: 'repeat-outline', label: 'Rewatch' },
+          { icon: 'ellipsis-horizontal', label: 'More' },
+        ];
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -138,7 +146,7 @@ export function MediaDetail({ item }: { item: MediaItem }) {
 
         <DropdownPill label={item.status ?? 'Add status'} style={styles.statusPill} />
 
-        {!isBook ? (
+        {isShow ? (
           <View style={styles.selectorRow}>
             <DropdownPill label="Season 1" style={styles.flexPill} />
             <DropdownPill label="Episode 6" style={styles.flexPill} />
