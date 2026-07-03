@@ -31,6 +31,15 @@ React Native app to web, iOS and Android. Commands live in `package.json`
   `EXPO_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). `EXPO_PUBLIC_*` vars are
   inlined by Metro **at bundle time**, so after editing `.env` you must restart
   the dev server for changes to take effect (hot reload will not pick them up).
+- Use the **base** project URL (e.g. `https://<ref>.supabase.co`) — do NOT
+  include a `/rest/v1/` suffix; `supabase-js` appends the sub-paths itself.
+- **Shell env beats `.env`**: Expo/Metro gives shell environment variables
+  precedence over `.env`. If this workspace has `EXPO_PUBLIC_SUPABASE_URL` /
+  `EXPO_PUBLIC_SUPABASE_ANON_KEY` injected as (placeholder) Secrets, they will
+  override `.env` and the app will use the wrong values. To make `.env`
+  authoritative, either `unset EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY`
+  before `npx expo start`, or pass the real values inline on the start command,
+  or update the Secrets to the real values.
 - The app boots without real credentials (`src/lib/supabase.ts` falls back to a
   placeholder client and logs a warning), so navigation and UI can be developed
   offline. Actual sign-in/sign-up requires a real Supabase project.
